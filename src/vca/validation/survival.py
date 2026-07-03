@@ -14,6 +14,8 @@ import numpy as np
 from lifelines import KaplanMeierFitter
 from lifelines.statistics import logrank_test
 
+from vca._km import kaplan_meier, sample_from_km
+
 
 @dataclass
 class KMEstimate:
@@ -39,19 +41,33 @@ def km_estimate(time: np.ndarray, event: np.ndarray, label: str = "") -> KMEstim
 
 def apply_empirical_censoring(
     latent_time: np.ndarray,
-    censoring_pool: np.ndarray,
+    real_time: np.ndarray,
+    real_event: np.ndarray,
     rng: np.random.Generator,
+    admin_max: float | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Censor simulated latent times using resampled real follow-up times.
+    """Censor simulated latent times to match the real cohort's censoring.
 
-    Each simulated patient is assigned a censoring time drawn with replacement
-    from ``censoring_pool`` (the real cohort's times under observation). The
-    observed simulated time is ``min(latent, C)`` with event indicator
-    ``latent <= C``. This matches the marginal censoring of the real data so the
-    two KM curves and the log-rank test compare like with like.
+    Censoring times are drawn from the Kaplan-Meier estimate of the real
+    cohort's **censoring** distribution G(u) = P(C > u) (the "event" for G being
+    ``1 - real_event``), with an administrative cap at ``admin_max`` (default:
+    the maximum real follow-up time). The observed simulated time is
+    ``min(latent, C)`` with event indicator ``latent <= C``.
+
+    Sampling from the *censoring* distribution — not from all observed times — is
+    important: a real patient who had an event at time y tells us nothing about
+    when they would have been censored, so treating y as a censoring draw would
+    over-censor the simulated arm. When the real cohort has little censoring, the
+    simulated arm is left essentially uncensored, as it should be.
     """
     latent_time = np.asarray(latent_time, float)
-    c = rng.choice(np.asarray(censoring_pool, float), size=latent_time.shape[0], replace=True)
+    real_time = np.asarray(real_time, float)
+    real_event = np.asarray(real_event, int)
+    if admin_max is None:
+        admin_max = float(np.max(real_time)) if real_time.size else np.inf
+
+    g_times, g_surv = kaplan_meier(real_time, 1 - real_event)
+    c, _ = sample_from_km(g_times, g_surv, latent_time.shape[0], rng, max_time=admin_max)
     obs_time = np.minimum(latent_time, c)
     event = (latent_time <= c).astype(int)
     return obs_time, event
@@ -103,7 +119,7 @@ def compare_survival(
     real_time = np.asarray(real_time, float)
     real_event = np.asarray(real_event, int)
 
-    sim_time, sim_event = apply_empirical_censoring(sim_latent_time, real_time, rng)
+    sim_time, sim_event = apply_empirical_censoring(sim_latent_time, real_time, real_event, rng)
 
     real_km = km_estimate(real_time, real_event, label="real")
     sim_km = km_estimate(sim_time, sim_event, label="simulated")

@@ -89,7 +89,7 @@ class CovariatePreprocessor:
             transformers.append(("cat", categorical_pipe, self.categorical_))
         return ColumnTransformer(transformers=transformers, remainder="drop")
 
-    def fit(self, df: pd.DataFrame) -> "CovariatePreprocessor":
+    def fit(self, df: pd.DataFrame) -> CovariatePreprocessor:
         self.column_transformer_ = self._build(df)
         self.column_transformer_.fit(df)
         self.feature_names_ = list(self.column_transformer_.get_feature_names_out())

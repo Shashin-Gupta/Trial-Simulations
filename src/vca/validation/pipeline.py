@@ -243,7 +243,6 @@ def _write_figures(report, result, survival_cmps, test, times, sld_landmarks,
         plt.close(fig)
 
     # SLD trajectory example (first patient with enough observed points).
-    t = float(sld_landmarks[0])
     grouped = {str(pid): g for pid, g in test.longitudinal.groupby("patient_id")}
     for j, pid in enumerate(order):
         g = grouped.get(str(pid))

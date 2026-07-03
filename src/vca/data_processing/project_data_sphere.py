@@ -67,7 +67,8 @@ def _apply_table_spec(dataset_dir: Path, spec: dict) -> pd.DataFrame:
     # Optional per-column value recoding (e.g. numeric sex codes -> M/F).
     for col, mapping in (spec.get("value_maps") or {}).items():
         if col in out.columns:
-            out[col] = out[col].map(lambda v: mapping.get(v, v))
+            # replace() recodes mapped values and leaves unmapped values as-is.
+            out[col] = out[col].replace(mapping)
 
     # Optional event-flag inversion: many sponsors store a *censor* flag where
     # 1 = censored; the canonical schema wants 1 = event.

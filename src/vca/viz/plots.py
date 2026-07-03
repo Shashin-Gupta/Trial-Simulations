@@ -61,7 +61,7 @@ def plot_coverage(coverage: dict[float, float], ax=None, title="Interval coverag
     """Nominal vs empirical prediction-interval coverage."""
     ax = _ax(ax)
     levels = sorted(coverage)
-    emp = [coverage[l] for l in levels]
+    emp = [coverage[lev] for lev in levels]
     ax.plot([0, 1], [0, 1], ls="--", color="gray", lw=1, label="ideal")
     ax.plot(levels, emp, "o-", label="empirical")
     ax.set_xlabel("Nominal level")

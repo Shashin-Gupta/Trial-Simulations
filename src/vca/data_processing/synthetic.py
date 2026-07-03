@@ -200,7 +200,7 @@ def make_synthetic_nsclc(
         true_sld = tgi_trajectory(sld0[i], shrink[i], growth[i], visit_times)
         # Multiplicative lognormal measurement error (~7% CV).
         obs_sld = true_sld * np.exp(rng.normal(0, 0.07, size=visit_times.shape))
-        for t, y in zip(visit_times, obs_sld):
+        for t, y in zip(visit_times, obs_sld, strict=False):
             rows.append((pid[i], float(round(t, 1)), float(round(y, 1))))
     longitudinal = pd.DataFrame(rows, columns=["patient_id", "time_days", "sld_mm"])
 

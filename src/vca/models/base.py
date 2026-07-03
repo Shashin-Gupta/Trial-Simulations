@@ -135,7 +135,7 @@ class TrajectoryModel(ABC):
         self.is_fitted: bool = False
 
     @abstractmethod
-    def fit(self, data: TrialData) -> "TrajectoryModel":
+    def fit(self, data: TrialData) -> TrajectoryModel:
         """Fit the model to canonical :class:`TrialData`. Returns ``self``."""
 
     @abstractmethod

@@ -165,7 +165,7 @@ class TGISurvivalModel(TrajectoryModel):
         self._mcmc = None
 
     # -- fitting -------------------------------------------------------------
-    def fit(self, data: TrialData) -> "TGISurvivalModel":
+    def fit(self, data: TrialData) -> TGISurvivalModel:
         data.validate(strict=False)
         jax, jnp, numpyro, dist = _lazy_imports()
         from numpyro.infer import MCMC, NUTS

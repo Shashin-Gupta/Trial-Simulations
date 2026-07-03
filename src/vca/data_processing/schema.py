@@ -26,8 +26,8 @@ Units & conventions
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 
 import numpy as np
 import pandas as pd
@@ -93,7 +93,7 @@ def _require_columns(df: pd.DataFrame, required: Iterable[str], table: str) -> N
         raise SchemaError(f"{table} table is missing required columns: {missing}")
 
 
-def validate_trial_data(td: "TrialData", *, strict: bool = True) -> "TrialData":
+def validate_trial_data(td: TrialData, *, strict: bool = True) -> TrialData:
     """Validate a :class:`TrialData` against the canonical schema.
 
     Checks column presence, event-indicator domains, non-negative times and
@@ -143,7 +143,7 @@ def validate_trial_data(td: "TrialData", *, strict: bool = True) -> "TrialData":
     return td
 
 
-def coerce_dtypes(td: "TrialData") -> "TrialData":
+def coerce_dtypes(td: TrialData) -> TrialData:
     """Best-effort coercion of the three tables to canonical dtypes (in place)."""
     b, e, lo = td.baseline, td.events, td.longitudinal
     for col in ("age", "baseline_sld_mm", "pdl1_tps"):
@@ -195,7 +195,7 @@ class TrialData:
         self.longitudinal = self.longitudinal.reset_index(drop=True).copy()
         self.events = self.events.reset_index(drop=True).copy()
 
-    def validate(self, *, strict: bool = True) -> "TrialData":
+    def validate(self, *, strict: bool = True) -> TrialData:
         return validate_trial_data(self, strict=strict)
 
     # -- introspection -------------------------------------------------------
@@ -220,7 +220,7 @@ class TrialData:
         ]
 
     # -- subsetting / splitting ---------------------------------------------
-    def subset(self, patient_ids: Iterable[str]) -> "TrialData":
+    def subset(self, patient_ids: Iterable[str]) -> TrialData:
         """Return a new :class:`TrialData` restricted to ``patient_ids``."""
         ids = set(map(str, patient_ids))
         return TrialData(
@@ -231,7 +231,7 @@ class TrialData:
 
     def train_test_split(
         self, test_fraction: float = 0.3, *, seed: int = 0
-    ) -> tuple["TrialData", "TrialData"]:
+    ) -> tuple[TrialData, TrialData]:
         """Split patients (not rows) into train/test partitions.
 
         Splitting on patients — never on individual measurements — is essential:
@@ -257,7 +257,7 @@ class TrialData:
         self.events.to_parquet(d / f"{prefix}_events.parquet")
 
     @classmethod
-    def from_parquet(cls, directory, prefix: str = "nsclc") -> "TrialData":
+    def from_parquet(cls, directory, prefix: str = "nsclc") -> TrialData:
         from pathlib import Path
 
         d = Path(directory)

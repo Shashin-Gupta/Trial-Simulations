@@ -108,7 +108,7 @@ class MarginalResamplingModel(TrajectoryModel):
         self._km_cache: dict[tuple, tuple[np.ndarray, np.ndarray]] = {}
 
     # -- fitting -------------------------------------------------------------
-    def fit(self, data: TrialData) -> "MarginalResamplingModel":
+    def fit(self, data: TrialData) -> MarginalResamplingModel:
         data.validate(strict=False)
         self._baseline = data.baseline.set_index("patient_id")
         self._events = data.events.set_index("patient_id")

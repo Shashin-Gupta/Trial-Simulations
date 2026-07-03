@@ -38,7 +38,6 @@ def kaplan_meier(time: np.ndarray, event: np.ndarray) -> tuple[np.ndarray, np.nd
     if distinct.size == 0:
         return np.array([]), np.array([])
 
-    n = time.size
     surv = np.empty(distinct.size)
     s = 1.0
     for i, t in enumerate(distinct):
