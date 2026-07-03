@@ -1,0 +1,89 @@
+# ============================================================================
+# PATIENT-LEVEL DATA — NEVER COMMIT
+# Project Data Sphere, SEER, and BioLINCC data use agreements PROHIBIT
+# redistribution. Raw and processed patient-level data must never leave the
+# local machine or enter version control. These rules are intentionally broad.
+# ============================================================================
+data/raw/*
+!data/raw/README.md
+data/processed/*
+!data/processed/README.md
+data/benchmarks/*.csv
+data/benchmarks/*.json
+!data/benchmarks/.gitkeep
+*.xpt
+*.sas7bdat
+*.sas7bcat
+*.csv
+*.tsv
+*.parquet
+*.feather
+*.dta
+*.zip
+*.gz
+# Explicitly allow small, non-patient reference/example files that are safe:
+!tests/**/*.csv
+!docs/**/*.csv
+!**/example_*.csv
+!**/*_schema.csv
+
+# ============================================================================
+# Python
+# ============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Environments
+.venv/
+venv/
+env/
+ENV/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# Model artifacts / fitted posteriors (can encode patient data — keep local)
+artifacts/
+*.nc
+*.netcdf
+*.pkl
+*.joblib
+*.pt
+*.pth
+
+# Validation outputs that may reference real patients — keep local by default
+results/private/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

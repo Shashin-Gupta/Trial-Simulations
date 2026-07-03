@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virtual-control-arms"
+version = "0.1.0"
+description = "Generative virtual control arms for oncology trial simulation (NSCLC, RECIST/PFS)."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Shashin Gupta" }]
+requires-python = ">=3.10"
+
+# Core runtime dependencies. These are enough to run the data layer, the
+# dependency-light baseline model, and the entire validation pipeline on
+# synthetic or real (locally held) data. The Bayesian sampler is a separate
+# optional extra (see [project.optional-dependencies]) because JAX wheels lag
+# new Python releases.
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "scipy>=1.10",
+    "scikit-learn>=1.3",
+    "lifelines>=0.27",     # Kaplan-Meier, log-rank, survival utilities
+    "matplotlib>=3.7",
+    "requests>=2.31",      # ClinicalTrials.gov v2 API client
+    "pyyaml>=6.0",         # column-mapping configs for dataset loaders
+]
+
+[project.optional-dependencies]
+# Primary scientific model. JAX/NumPyro often do not have wheels for the very
+# newest CPython for a few months after release — if this fails to install,
+# use Python 3.11 or 3.12 (see README). The pipeline still runs without it via
+# the dependency-light baseline model.
+bayes = [
+    "numpyro>=0.13",
+    "jax>=0.4.20",
+    "arviz>=0.17",         # posterior diagnostics (R-hat, ESS)
+]
+# SAS transport/native readers for Project Data Sphere exports.
+sas = [
+    "pyreadstat>=1.2",     # reads .sas7bdat with formats/labels (pandas.read_sas handles .xpt natively)
+]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.3",
+    "jupytext>=1.16",      # pair notebooks with .py for clean diffs
+    "nbclient>=0.9",       # execute notebooks headlessly
+]
+# Phase 3 product wrapper (stubbed only for now).
+app = [
+    "streamlit>=1.30",
+    "typer>=0.9",
+]
+
+[project.scripts]
+# Live, no-auth ClinicalTrials.gov benchmark puller — safe to run out of the box.
+vca-fetch-benchmarks = "vca.data_processing.clinicaltrials:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "slow: marks tests that fit a full Bayesian model (deselect with '-m \"not slow\"')",
+    "bayes: requires the [bayes] optional dependencies (numpyro/jax)",
+    "live: hits a real external network API (ClinicalTrials.gov)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+ignore = ["E501"]  # line length handled by formatter; long docstrings allowed

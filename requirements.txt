@@ -1,0 +1,28 @@
+# Convenience pin file mirroring pyproject.toml's core dependencies.
+# Preferred install path is:  pip install -e ".[dev]"   (see README).
+# This file exists for environments/CI that expect a requirements.txt.
+#
+# Core (data layer + baseline model + full validation pipeline):
+numpy>=1.24
+pandas>=2.0
+scipy>=1.10
+scikit-learn>=1.3
+lifelines>=0.27
+matplotlib>=3.7
+requests>=2.31
+pyyaml>=6.0
+
+# Dev tooling:
+pytest>=7.4
+pytest-cov>=4.1
+ruff>=0.3
+jupytext>=1.16
+
+# Optional — primary Bayesian model. If these fail on your Python version,
+# install them separately under Python 3.11/3.12 (see README "Environment").
+#   numpyro>=0.13
+#   jax>=0.4.20
+#   arviz>=0.17
+#
+# Optional — SAS readers for Project Data Sphere native exports:
+#   pyreadstat>=1.2
