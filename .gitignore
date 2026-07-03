@@ -78,8 +78,10 @@ artifacts/
 *.pt
 *.pth
 
-# Validation outputs that may reference real patients — keep local by default
-results/private/
+# Validation outputs — regenerable, and a real-data run's metrics could
+# reference real patients, so keep the whole directory local by default.
+results/*
+!results/.gitkeep
 
 # OS / editor
 .DS_Store
