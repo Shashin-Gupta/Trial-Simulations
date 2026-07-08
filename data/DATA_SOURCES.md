@@ -7,10 +7,15 @@ document is the operator's manual for obtaining each source yourself.
 
 | Source | Role in this project | Access | Patient-level? |
 |---|---|---|---|
-| **Project Data Sphere (PDS)** | Primary training data: NSCLC comparator-arm trajectories + outcomes | Manual registration + DUA | Yes |
-| **SEER (NCI)** | External calibration: real-world lung-cancer survival | DUA request (~2 business days) | Yes |
+| **Project Data Sphere (PDS)** | Training + external validation: 5 NSCLC comparator-arm datasets (trajectories + outcomes) | Manual registration + DUA | Yes |
 | **ClinicalTrials.gov v2 API** | Aggregate benchmark medians (PFS/OS) to sanity-check simulations | Public, no auth | No (summary only) |
+| **SEER (NCI)** | **Planned / not yet incorporated** — population-level real-world survival calibration | DUA request (~2 business days) | Yes |
 | **BioLINCC (NHLBI)** | Not used — see note below | — | — |
+
+> **This phase uses PDS + ClinicalTrials.gov only.** SEER is a *future* external
+> calibration layer and is not part of the current validation, so results here
+> are a **trial-data validation**, not population-level real-world calibration
+> (trial populations are healthier/more selected — see `docs/methodology.md` §9).
 
 ---
 
@@ -25,8 +30,29 @@ etc.), which is why it is our first indication. PDS also runs a dedicated
 
 **Why access is manual.** Data are released under per-dataset use agreements and
 account approval is human-gated. There is no programmatic bulk API for the
-patient-level files, so **you must download them by hand**; this repo's loader
-(`vca.data_processing.project_data_sphere`) reads what you place on disk.
+patient-level files, so **you must download them by hand**.
+
+**The five trials used here.** Place each dataset's SAS files under
+`data/raw/<trial_id>/` (git-ignored). The trial-specific loaders in
+`vca.data_processing.pds_trials` map each sponsor's format onto the canonical
+schema — no per-dataset YAML needed for these five:
+
+| trial_id | study | control regimen | histology | line |
+|---|---|---|---|---|
+| `LungNo_EliLill_2009_438` | Lilly H3E-US-S130 | Paclitaxel+Carbo+Bev | non-squamous | 1L (**train**) |
+| `LungNo_EliLill_2008_141` | Lilly JMHD | Paclitaxel+Carbo+Bev | non-squamous | 1L |
+| `LungNo_EliLill_2010_272` | Lilly SQUIRE | Gemcitabine+Cisplatin | squamous | 1L |
+| `LungNo_SanofiU_2007_133` | Sanofi VITAL | Placebo+Docetaxel | mixed | 2L |
+| `LungNo_Celgene_2007_108` | Celgene CA031 | Paclitaxel+Carbo | mixed | 1L |
+
+```python
+from vca.data_processing.pds_trials import load_trial
+rt = load_trial("272")            # -> RealTrial (canonical TrialData + aggregate BOR)
+```
+
+For **other** PDS datasets not in this set, use the generic YAML-driven loader
+(`vca.data_processing.project_data_sphere`, below), which reads what you place on
+disk with a per-dataset column map.
 
 ### Registration + download steps
 
@@ -80,12 +106,19 @@ a *censor* flag where 1 = censored).
 
 ---
 
-## 2. SEER (external calibration)
+## 2. SEER (external calibration) — PLANNED, NOT YET INCORPORATED
+
+> **Status:** the SEER loader (`vca.data_processing.seer`) exists but is
+> **dormant** — nothing in the pipeline imports or invokes it, and the current
+> validation does **not** depend on SEER data being present. Folding SEER in as a
+> real-world calibration layer is explicit future work; the steps below are for
+> when that work begins.
 
 **What it is.** NCI's population-based cancer registry — real-world incidence and
-survival. We use it **only** as an external sanity check on baseline survival
-(is simulated OS in the right neighbourhood for a comparable stage mix?). SEER is
-not trial data, has no RECIST trajectories, and is **not** used to fit the model.
+survival. It will be used **only** as an external sanity check on baseline
+survival (is simulated OS in the right neighbourhood for a comparable stage mix?).
+SEER is not trial data, has no RECIST trajectories, and is **not** used to fit the
+model.
 
 **Key nuance:** research microdata comes through the **SEER\*Stat application**
 after a data use agreement, **not** through `api.seer.cancer.gov` (that REST

@@ -5,8 +5,13 @@ trajectories — tumour size over time, progression, and survival — for a sing
 well-characterised indication (advanced NSCLC), validated against real historical
 comparator-arm data.**
 
-> Status: **research (Phases 0–2 built and validated on synthetic data; not yet
-> run on real Project Data Sphere data).** The end goals are (1) a
+> Status: **research — validated on real Project Data Sphere data.** Phases 0–2
+> are built; the model is now trained and internally validated on a real NSCLC
+> comparator arm (`_438`) and externally validated against four independent real
+> trials at the aggregate level (`docs/methodology.md` §6–7). ClinicalTrials.gov
+> is integrated as a benchmark sanity check; SEER-based real-world calibration is
+> planned future work, **not** yet incorporated (so this is a *trial-data*
+> validation, not population-level calibration). The end goals are (1) a
 > bioRxiv-publishable validation paper for one indication/endpoint, and (2) a
 > lightweight tool that turns a proposed trial design into a simulated
 > power/feasibility analysis. See the [roadmap](#roadmap).
@@ -98,18 +103,32 @@ pytest -q                             # run the test suite
 process, fits both the baseline and the Bayesian model, and produces the full
 validation report — the same code path you will later point at real data.
 
-### Fetch the real data (you do this part)
+### Run the real-data validation (Project Data Sphere)
 
-Real patient-level data is access-gated and **must never be committed**. Follow
-the step-by-step registration and download instructions in
-[`data/DATA_SOURCES.md`](data/DATA_SOURCES.md), then:
+Real patient-level data is access-gated and **must never be committed**. Once the
+five NSCLC comparator-arm datasets are placed under `data/raw/<trial_id>/`
+(see [`data/DATA_SOURCES.md`](data/DATA_SOURCES.md)):
+
+```bash
+pip install -e ".[bayes,sas]"                 # NumPyro/JAX + pyreadstat
+python scripts/profile_trials.py              # Step 1: per-trial data profiles
+python scripts/run_real_data_validation.py    # Steps 2–3: internal + external validation
+```
+
+This trains the Bayesian model on `_438`, scores it on the held-out 20%, then
+runs the external aggregate validation (matched synthetic population → simulated
+BOR + PFS/OS vs each real trial), and finally checks all simulated medians
+against the ClinicalTrials.gov benchmark. Outputs land in `results/real_data/`
+(git-ignored). Each trial is loaded via `vca.data_processing.pds_trials`:
 
 ```python
-from vca.data_processing.project_data_sphere import load_project_data_sphere
-td = load_project_data_sphere("data/raw/project_data_sphere/<slug>",
-                              "data/raw/column_maps/<slug>.yaml")
-td.validate()
+from vca.data_processing.pds_trials import load_trial
+rt = load_trial("272")        # RealTrial: canonical TrialData + aggregate BOR
+rt.data.validate(strict=False)
 ```
+
+> Some sponsors' `.sas7bdat` files use a compression `pyreadstat` cannot read;
+> `vca.data_processing.sas.read_sas_any` falls back to pandas automatically.
 
 ---
 
@@ -125,13 +144,16 @@ td.validate()
 │   ├── benchmarks/    # ClinicalTrials.gov aggregate medians (regenerable)
 │   └── DATA_SOURCES.md# how to obtain PDS / SEER / ClinicalTrials.gov data
 ├── src/vca/
-│   ├── data_processing/  # canonical schema, synthetic data, loaders, CT.gov API
+│   ├── data_processing/  # schema, synthetic data, pds_trials (5 real loaders),
+│   │                     #   sas reader, CT.gov API, seer (dormant/future)
 │   ├── models/           # TrajectoryModel interface, baseline, Bayesian TGI+survival
-│   ├── validation/       # calibration, coverage, Brier, CRPS, KM/log-rank, pipeline
+│   ├── validation/       # calibration, coverage, Brier, CRPS, KM/log-rank,
+│   │                     #   pipeline, external (aggregate validation), profiling
 │   ├── viz/              # plots
 │   └── product/          # Phase 3 wrapper (STUBBED)
 ├── notebooks/         # 00_data_profiling, 01_validation_report (jupytext .py)
-├── scripts/           # run_demo.py end-to-end driver
+├── scripts/           # run_demo.py (synthetic), profile_trials.py,
+│                      #   run_real_data_validation.py (real PDS Steps 2–3)
 ├── tests/             # pytest
 └── docs/methodology.md# modelling choices + flagged validity concerns (Methods draft)
 ```
@@ -179,11 +201,17 @@ to cite in a paper draft. Metrics are always reported for the Bayesian model
   Bayesian TGI + survival joint model.
 - [x] **Phase 2** — held-out validation suite (calibration, coverage, Brier,
   CRPS, KM/log-rank); validated on synthetic data.
-- [ ] **Phase 2 on real data** — run on Project Data Sphere NSCLC; complete the
-  go/no-go checks in `docs/methodology.md` §6; write the paper.
+- [x] **Phase 2 on real data** — Project Data Sphere NSCLC: trained + internally
+  validated on `_438`; externally validated aggregates against four independent
+  trials; ClinicalTrials.gov benchmark sanity check passed. Results and honest
+  limitations in `docs/methodology.md` §6–9. *Paper write-up in progress.*
+- [ ] **Future: SEER real-world calibration** — fold population-level SEER
+  survival in as an external calibration layer (the loader exists but is
+  dormant); trial populations are healthier/more selected than the general
+  population, so this is a named limitation until done.
 - [ ] **Phase 3 (stubbed only)** — CLI / Streamlit tool: input a trial design,
-  get a simulated power/feasibility analysis. Do **not** build until Phase 2 is
-  validated on real data.
+  get a simulated power/feasibility analysis. Do **not** build until the
+  real-data validation is reviewed.
 
 ## Honesty policy
 

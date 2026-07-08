@@ -166,6 +166,37 @@ def run_external(bayes_model, donor: TrialData, args) -> None:
         "different (desirable). PFS omitted where not derivable (133).\n\n"
         + table.to_markdown(index=False) + "\n")
     print(f"\nWrote external results to {ext_dir}")
+    return table
+
+
+def run_benchmark_check(sim_medians: list[dict]) -> None:
+    """Sanity-check simulated PFS/OS medians vs the ClinicalTrials.gov benchmark.
+
+    Confirms every simulated median sits inside the historical p5–p95 band for
+    the indication; flags any outlier (methodology §6 KM-sanity check).
+    """
+    bpath = ROOT / "data" / "benchmarks" / "nsclc_trial_benchmarks.csv"
+    if not bpath.exists():
+        print("[benchmark] benchmark CSV absent; skipping sanity check")
+        return
+    bench = pd.read_csv(bpath)
+    band = {}
+    for ep in ("PFS", "OS"):
+        x = bench.loc[bench["endpoint"] == ep, "median_months"].dropna()
+        x = x[(x > 0) & (x < 60)]
+        band[ep] = (float(x.quantile(0.05)), float(x.quantile(0.95)), float(x.median()))
+    rows = []
+    for m in sim_medians:
+        ep = m["endpoint"].upper()
+        lo, hi, med = band[ep]
+        rows.append({**m, "benchmark_median": med, "p5": lo, "p95": hi,
+                     "in_range": bool(lo <= m["sim_median_mo"] <= hi)})
+    df = pd.DataFrame(rows)
+    df.to_csv(OUT / "benchmark_sanitycheck.csv", index=False)
+    n_out = int((~df["in_range"]).sum())
+    print("\n[benchmark] ClinicalTrials.gov sanity check "
+          f"({'ALL IN RANGE' if n_out == 0 else f'{n_out} OUTLIER(S)'}):")
+    print(df.to_string(index=False))
 
 
 def _fmt(x):
@@ -215,7 +246,23 @@ def main(argv=None) -> int:
 
     internal = run_internal(args)
     donor = measurable_cohort(load_438().data)
-    run_external(internal["bayes_model"], donor, args)
+    ext_table = run_external(internal["bayes_model"], donor, args)
+
+    # collect simulated medians for the benchmark sanity check
+    sim_medians = []
+    rep = internal["report"]
+    for ep in ("pfs", "os"):
+        sd = rep.endpoints[ep]["survival"].get("sim_median_days")
+        if sd:
+            sim_medians.append({"source": "438_internal", "endpoint": ep,
+                                "sim_median_mo": round(sd / DAYS_PER_MONTH, 2)})
+    for _, r in ext_table.iterrows():
+        for ep in ("pfs", "os"):
+            v = r.get(f"{ep}_sim_mo")
+            if pd.notna(v):
+                sim_medians.append({"source": r["trial_id"], "endpoint": ep,
+                                    "sim_median_mo": float(v)})
+    run_benchmark_check(sim_medians)
     print(f"\nAll real-data validation outputs under {OUT.resolve()}/")
     return 0
 
