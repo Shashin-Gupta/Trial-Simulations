@@ -45,13 +45,18 @@ class SimulationResult:
 
     covariates: pd.DataFrame
     times: np.ndarray                       # (T,) evaluation grid, days
-    sld: np.ndarray                         # (n_draws, n_patients, T), mm
+    sld: np.ndarray                         # (n_draws, n_patients, T), mm (with obs noise)
     pfs_time: np.ndarray                    # (n_draws, n_patients), days
     pfs_event: np.ndarray                   # (n_draws, n_patients), {0,1}
     os_time: np.ndarray                     # (n_draws, n_patients), days
     os_event: np.ndarray                    # (n_draws, n_patients), {0,1}
     max_time: float = np.inf
     meta: dict = field(default_factory=dict)
+    # Noise-free expected SLD trajectory, same shape as ``sld``. RECIST response
+    # categorisation should use this (it reflects the underlying tumour dynamics,
+    # not single-scan measurement noise); ``None`` for models that do not
+    # separate a mean trajectory from observation noise.
+    sld_mean: np.ndarray | None = None
 
     # -- shape helpers -------------------------------------------------------
     @property

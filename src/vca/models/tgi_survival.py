@@ -154,12 +154,21 @@ class TGISurvivalModel(TrajectoryModel):
         num_samples: int = 500,
         num_chains: int = 2,
         seed: int = 0,
+        max_sld_mm: float = 1000.0,
     ) -> None:
         super().__init__()
         self.num_warmup = num_warmup
         self.num_samples = num_samples
         self.num_chains = num_chains
         self.seed = seed
+        # Physiological cap on simulated tumour burden. The bi-exponential TGI
+        # regrowth term grows without bound, and the log-normal growth-rate
+        # random effect has a heavy upper tail, so a small fraction of long-
+        # horizon draws would otherwise reach absurd (10^100+ mm) sizes. The
+        # likelihood already clips at fit time; simulation mirrors that with a
+        # physiological bound (100 cm summed diameter is far beyond clinical
+        # reality). See docs/methodology.md (SLD over-dispersion).
+        self.max_sld_mm = float(max_sld_mm)
         self.preprocessor = CovariatePreprocessor()
         self._posterior: dict[str, np.ndarray] | None = None
         self._mcmc = None
@@ -254,14 +263,16 @@ class TGISurvivalModel(TrajectoryModel):
         d = np.exp(log_d)                                      # (n_draws, n_pat)
         g = np.exp(log_g)
 
-        # Trajectories with multiplicative observation noise.
+        # Trajectories with multiplicative observation noise. Exponents are
+        # clipped exactly as in the fit-time likelihood so simulation cannot
+        # produce sizes the model was never scored against; the final size is
+        # bounded to a physiological maximum (see ``max_sld_mm``).
         tt = times[None, None, :]
-        mean_sld = y0[None, :, None] * (
-            np.exp(-d[:, :, None] * tt) + np.exp(g[:, :, None] * tt) - 1.0
-        )
-        mean_sld = np.clip(mean_sld, 1e-3, None)
+        grow = np.exp(np.clip(g[:, :, None] * tt, None, 15.0))
+        shrink = np.exp(np.clip(-d[:, :, None] * tt, -30.0, 0.0))
+        mean_sld = np.clip(y0[None, :, None] * (shrink + grow - 1.0), 1e-3, self.max_sld_mm)
         noise = rng.standard_normal((n_draws, n_pat, T)) * post["sigma_obs"][s][:, None, None]
-        sld = np.clip(mean_sld * np.exp(noise), 1e-3, None)
+        sld = np.clip(mean_sld * np.exp(noise), 1e-3, self.max_sld_mm)
 
         # Survival draws.
         growth_dev = log_g - post["mu_g"][s][:, None]
@@ -272,6 +283,7 @@ class TGISurvivalModel(TrajectoryModel):
             covariates=covariates.copy(),
             times=times,
             sld=sld,
+            sld_mean=mean_sld,
             pfs_time=pfs_t,
             pfs_event=pfs_e,
             os_time=os_t,
