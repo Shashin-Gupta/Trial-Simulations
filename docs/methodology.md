@@ -394,7 +394,98 @@ are honest negatives worth a full paragraph in the paper, not a footnote.
 
 ---
 
-## 10. Change log
+## 10. OS under-prediction: post-progression therapy investigation
+
+§7.2 found that simulated OS runs **1–2.5 months below real OS for all four**
+external trials, reaching significance for `_108` (log-rank *p*=0.018). A natural
+hypothesis is that patients in the external trials received more **post-progression
+subsequent therapy** than `_438`'s training population, lengthening their real OS
+beyond what a growth-kinetics-only model (which knows nothing about
+treatment-after-progression) can reproduce. We tested this directly (model-free;
+`scripts/diagnose_os_subsequent_therapy.py`).
+
+**Verdict: it does not explain the gap.** The evidence points the other way.
+
+**Data availability.** `_438` (the training trial) ships **no** subsequent-therapy
+table (no `syst`/`cmtpy`); the only signal is the contrast between its two PFS
+definitions (censored vs not censored at subsequent anti-cancer therapy), which
+captures *pre*-progression therapy switches only — a 15.6% lower bound that does
+**not** measure post-progression therapy. The four external trials each expose a
+different field: `272` `adsl.CMANTCFL` (post-study anticancer flag, cleanest),
+`108` `foll.THERNEW/THERNAME/THERDAY` (subsequent regimens with dates), `141`
+`cmtpy` (ATC-coded, antineoplastics = class L), `133` `cm` (SDTM anti-tumour
+therapy). So the ideal within-`_438` test the hypothesis calls for is **not
+possible from the data the model was built on** — already a caution.
+
+**Subsequent-therapy rate vs the OS gap (per trial).**
+
+| trial | subsequent-therapy rate | real OS (mo) | sim OS (mo) | OS gap (mo) | ext OS log-rank *p* |
+|-------|-------------------------|--------------|-------------|-------------|---------------------|
+| 141 | 25% (`cmtpy` ATC-L) | 13.4 | 11.0 | **2.44** | 0.18 |
+| 272 | 45% (`CMANTCFL`) | 9.9 | 8.7 | 1.13 | 0.99 |
+| 133 | 51% (`cm` anti-tumour) | 11.7 | 10.2 | 1.43 | 0.87 |
+| 108 | 55% (`THERNEW`) | 11.1 | 9.3 | 1.87 | 0.02 |
+
+- **No dose-response.** If subsequent therapy drove the gap, the gap should rise
+  with the therapy rate. It does not — Spearman ρ(gap, rate) = **−0.20** (wrong
+  sign). The trial with the **largest** OS gap (`141`, 2.44 mo) has the
+  **lowest** subsequent-therapy rate (25%) and is the **same regimen as `_438`**
+  — exactly where subsequent-therapy transportability should be *best*. The
+  squamous trial `272`, with a high therapy rate (45%), has the **smallest** gap
+  and the best OS fit (*p*=0.99).
+- **The gap tracks the trial's real OS *level*, not its therapy rate.**
+  Spearman ρ(gap, real-OS median) = **+0.80**. The model compresses every
+  population toward a `_438`-anchored marginal OS (~10.5 mo), so it under-predicts
+  precisely the trials whose true OS sits *above* `_438`'s (13.4, 11.7, 11.1) and
+  matches the one below it (9.9). This is a **lack of transportable covariate
+  effects**, not a therapy effect: `_438` offered almost no covariate variation to
+  learn from (one regimen, one stage, nonsquamous only, no ECOG), so the survival
+  sub-model cannot move the OS level between populations.
+- **The under-prediction is already present internally.** On `_438`'s own
+  held-out set the model's OS median is ~10.8 mo vs ~11.8 mo real (§7.1) — a ~1 mo
+  under-calibration *before any cross-trial transport*. Subsequent therapy, which
+  is baked into `_438`'s observed (training) OS, cannot explain a gap that exists
+  within the training trial itself.
+
+> ⚠ **Immortal-time bias in the naive within-trial split.** Splitting OS by
+> "ever received subsequent therapy" shows the therapy groups living **7–9 months
+> longer** (e.g. `108` 15.8 vs 6.9 mo, *p*<1e-15). This is almost entirely
+> **immortal-time bias / confounding by indication**: a patient must survive to
+> progression *and* be fit enough to be re-treated, so the "no-therapy" arm is
+> enriched for early deaths by construction, and the raw magnitude (7–9 mo) dwarfs
+> the ~2 mo OS benefit second-line chemotherapy shows in randomised trials. A
+> 180-day **landmark** on `_108` (restricting to patients alive at 180 d and
+> flagging therapy started by then) **reverses** the association — subsequent-
+> therapy patients then have *shorter* residual OS (12.3 vs 17.7 mo), because
+> early re-treatment marks early progression. So subsequent therapy is a **marker
+> of worse disease as often as a driver of longer OS**, and the naive split cannot
+> be read as a causal mechanism.
+
+**What likely does explain the OS under-prediction** (for the next iteration, not
+changed here):
+
+1. **Compression toward the training-anchored marginal OS** (primary): with `_438`
+   the only training trial and little covariate spread, the model has no basis to
+   raise or lower the OS level per population, so it regresses everyone toward
+   ~10.5 mo and under-predicts genuinely longer-lived cohorts. `_108`'s
+   significance reflects its large n / high event maturity detecting this
+   systematic ~1–2 mo bias, not a `_108`-specific effect (its median gap is
+   actually *smaller* than `_141`'s).
+2. **Mild intrinsic OS under-calibration** in the Weibull sub-model, visible
+   internally (§7.1).
+3. **Secondary / to check:** the growth→survival coupling (θ) may not transfer
+   across regimens; not enforcing OS ≥ PFS and the censoring-matching step can
+   shave the simulated median; and informative censoring differences between
+   trials (§6.1) could bias the real KM upward relative to the model's assumed
+   independent censoring.
+
+The constructive fix is therefore **more training trials / covariate variation**
+(or a study-level effect), not a post-progression-therapy term. Since the hypothesis
+does not hold, we do **not** add a subsequent-therapy covariate to the model.
+
+---
+
+## 11. Change log
 
 - **v0.2** — Real Project Data Sphere validation. Loaders for five sponsor
   formats (`vca.data_processing.pds_trials`, `.sas`); revised design (train +
@@ -402,6 +493,10 @@ are honest negatives worth a full paragraph in the paper, not a footnote.
   RECIST BOR classifier + matched-population external pipeline
   (`vca.validation.external`); simulate-time SLD clipping fix; ClinicalTrials.gov
   benchmark sanity check. SEER remains dormant/future work.
+  Diagnostic (§10, `scripts/diagnose_os_subsequent_therapy.py`): tested and
+  **rejected** post-progression subsequent therapy as the cause of the OS
+  under-prediction; attributed it instead to compression toward the
+  training-anchored marginal OS.
 - **v0.1** — Canonical schema; synthetic generator with known DGP; baseline
   resampling model; hierarchical Bayesian TGI + Weibull-survival joint model;
   validation metric suite; ClinicalTrials.gov benchmark puller. Validated on
