@@ -153,51 +153,66 @@ synthetic-data result for the same model.
 
 | metric (better) | Bayesian | baseline | synthetic (prior) |
 |-----------------|----------|----------|-------------------|
-| mean log-rank *p* (↑) | **0.586** | 0.258 | 0.564 |
-| IPCW Brier (↓) | 0.209 | 0.209 | 0.172 |
-| calibration ECE (↓) | 0.139 | 0.105 | 0.057 |
-| SLD CRPS, mm (↓) | **22.8** | 26.4 | 11.1 |
+| mean log-rank *p* (↑) | **0.348** | 0.258 | 0.564 |
+| IPCW Brier (↓) | **0.207** | 0.209 | 0.172 |
+| calibration ECE (↓) | 0.150 | **0.105** | 0.057 |
+| SLD CRPS, mm (↓) | **22.7** | 26.4 | 11.1 |
 
-Simulated PFS and OS KM curves are statistically indistinguishable from real
-(log-rank *p* = 0.63 and 0.54; real vs simulated medians 165 vs 142 d and 360 vs
-330 d). The Bayesian model beats the baseline on survival-curve calibration
-(log-rank 0.586 vs 0.258) and SLD CRPS, ties on Brier, and is slightly worse on
-ECE — the same pattern as on synthetic data, where the joint model's advantage was
-also concentrated in survival calibration.
+The canonical fit is 1000/1000/4 NUTS, seed 0 (worst R̂ = 1.004, minimum ESS 919);
+it is deterministic (`chain_method="sequential"`) and reproduces bit-exactly.
+Simulated PFS and OS KM curves are indistinguishable from real across replicates
+(deployed significance rate 3% and 9%; median log-rank *p* 0.48 and 0.33;
+representative replicate *p* = 0.22 and 0.47, real vs simulated medians 165 vs 173 d
+and 360 vs 300 d). The Bayesian model beats the baseline on survival-curve
+calibration (mean log-rank 0.348 vs 0.258) and SLD CRPS, ~ties on Brier, and is
+worse on ECE — the same pattern as on synthetic data, where the joint model's
+advantage was also concentrated in survival calibration.
 
-**Honest degradation vs synthetic.** Brier (0.17 → 0.21), ECE (0.06 → 0.14), and
+**Honest degradation vs synthetic.** Brier (0.17 → 0.21), ECE (0.06 → 0.15), and
 SLD CRPS (11 → 23) are all worse on real data. This is expected: real trajectories
 are messier, `n_test` = 35 makes metrics noisy, and the SLD predictive intervals
-are over-dispersed — the trajectory *median* is well-centred (simulated 54 mm vs
-observed 48 mm at 6 months) but the intervals are wide, a real calibration limit
-rather than a numerical artefact.
+are over-dispersed — the trajectory *median* tracks the observed measurements but
+the intervals are wide, a real calibration limit rather than a numerical artefact.
 
 **Benchmark plausibility.** Every simulated PFS/OS median (internal and external)
 falls inside the ClinicalTrials.gov historical p5–p95 band (PFS [2.0, 16.8] mo,
-OS [6.8, 33.9] mo); the internal PFS median (4.7 mo) equals the benchmark median.
+OS [6.8, 33.9] mo).
 
 ---
 
 ## 3. External validation (four trials)
 
 Matched synthetic populations were simulated with the `_438`-trained model and
-compared to each trial's real aggregates. Large p-values indicate the simulated
-and real aggregates are not distinguishable.
+compared to each trial's real aggregates. Because a single simulated cohort gives
+one Monte-Carlo-noisy replicate of each transport statistic (changing the draw pool
+from 300 to 400 moved trial-272 PFS from *p* = 0.97 to 0.20), we characterise the
+distribution over 1000 posterior-predictive replicates and report the significance
+rate (fraction with *p* < 0.05). Two estimands are computed, both on matched-size
+cohorts (one trajectory per patient, never oversized). The **deployed** estimand
+(primary) draws each synthetic patient's parameters independently from the full
+posterior — how a virtual control arm is used — with a full-posterior pool removing
+the draw-pool artefact; the **per-draw** estimand (sensitivity) shares one posterior
+draw across the cohort and is stricter. Table cells give the deployed significance
+rate and median *p*, with the representative single replicate (canonical
+*n_draws* = 400) and real/sim OS medians in parentheses.
 
-| trial | regimen / line / histology | BOR χ² *p* | PFS log-rank *p* (real/sim mo) | OS log-rank *p* (real/sim mo) |
-|-------|----------------------------|-----------|-------------------------------|-------------------------------|
-| 141 | Pac+Carbo+Bev / 1L / non-sq | 2×10⁻⁶ | **0.25** (5.6 / 5.1) | **0.18** (13.4 / 11.0) |
-| 272 | Gem+Cis / 1L / squamous | 2×10⁻⁵ | **0.20** (5.5 / 4.3) | **0.99** (9.9 / 8.7) |
-| 133 | Placebo+Docetaxel / 2L | 2×10⁻⁵⁸ | n/a (not derivable) | **0.87** (11.7 / 10.2) |
-| 108 | Pac+Carbo / 1L / mixed | 3×10⁻¹³ | **0.20** (5.3 / 4.5) | **0.018** (11.1 / 9.3) |
+| trial | regimen / line / histology | BOR (deployed) | PFS (deployed) | OS (deployed) |
+|-------|----------------------------|----------------|----------------|---------------|
+| 141 | Pac+Carbo+Bev / 1L / non-sq | 100% sig (rep 1.5×10⁻⁵) | 1% sig; med 0.61 (rep 0.31; 5.6/5.1) | 6% sig; med 0.40 (rep 0.13; 13.4/11.1) |
+| 272 | Gem+Cis / 1L / squamous | 100% sig (rep 4.1×10⁻⁵) | 3% sig; med 0.52 (rep 0.63; 5.5/4.8) | 1% sig; med 0.60 (rep 0.82; 9.9/9.1) |
+| 133 | Placebo+Docetaxel / 2L | 100% sig (rep 4.0×10⁻⁵⁹) | n/a (not derivable) | 1% sig; med 0.62 (rep 0.62; 11.7/11.3) |
+| 108 | Pac+Carbo / 1L / mixed | 100% sig (rep 7.3×10⁻¹³) | 4% sig; med 0.41 (rep 0.55; 5.3/4.8) | 21% sig; med 0.16 (rep 0.09; 11.1/9.5) |
 
-**Survival transports for three of four trials.** PFS is indistinguishable wherever
-derivable, and OS is indistinguishable for 141, 272, and 133. OS fails only for
-108 (*p* = 0.018). Notably, the squamous trial 272 — a plausible a priori
-breakdown case, since `_438` is nonsquamous-only — transports well on survival
-(OS *p* = 0.99).
+**Survival transports for all four trials under the deployed estimand.** OS is
+significant in only 0.6–6% of replicates for 141, 272 and 133, and 21% for 108 (the
+weakest), against a ~5% null; PFS in 1–4% wherever derivable. The squamous trial
+272 — a plausible a priori breakdown case, since `_438` is nonsquamous-only —
+transports well (OS 1% sig). Under the stricter **per-draw** estimand the three
+higher-OS trials become significant in the majority of replicates (OS 73% for 272,
+77% for 133, 54% for 108), reflecting the small systematic OS under-prediction
+(§4.2); internal validation and trial 141 stay clean.
 
-**BOR does not transport for any trial.** The χ² test rejects agreement for all
+**BOR does not transport for any trial** — significant in 100% of replicates for all
 four. The reasons differ by trial and are mechanistically explained in §4.1.
 
 ---
@@ -207,16 +222,16 @@ four. The reasons differ by trial and are mechanistically explained in §4.1.
 ### 4.1 BOR does not transport — target-lesion-only simulation
 
 For the three first-line trials the SD and PR proportions are actually close
-(e.g. 141: real SD 46% / PR 40% vs simulated SD 49% / PR 45%). The χ² failure is
+(e.g. 141: real SD 46% / PR 40% vs simulated SD 50% / PR 44%). The χ² failure is
 driven by systematic **under-prediction of PD-as-best-response** (simulated
-1–4% vs real 12–13%). **Mechanism:** the model simulates only the *target-lesion*
+1–5% vs real 12–13%). **Mechanism:** the model simulates only the *target-lesion*
 SLD trajectory, whereas much real early progression is driven by **new lesions or
 non-target progression**, which the model cannot produce. (With n ≈ 500 the test
 also has power to flag small but real discrepancies.)
 
-The second-line trial 133 fails differently and severely (χ² *p* = 2×10⁻⁵⁸):
-simulated response is ~5× too high (PR 49% vs real 9%) and PD is under-predicted
-(3% vs 42%). This is the **expected out-of-domain failure** — `_438` training was
+The second-line trial 133 fails differently and severely (representative χ² *p* =
+4×10⁻⁵⁹): simulated response is ~5× too high (PR 52% vs real 9%) and PD is
+under-predicted (4% vs 42%). This is the **expected out-of-domain failure** — `_438` training was
 first-line only and `prior_lines` is constant, so the model has no representation
 of second-line refractory biology. It is consistent with, not separate from, the
 target-lesion mechanism: the model applies first-line shrinkage dynamics to a
@@ -227,32 +242,34 @@ so that simulated progression is not target-SLD-only (§5).
 
 ### 4.2 OS compresses toward the training-trial marginal — single-trial covariate limitation
 
-Simulated OS runs below real OS for all four trials (gap 1.1–2.4 mo).
+Simulated OS runs below real OS for all four trials (gap 0.3–2.3 mo).
 **Mechanism:** with a single training trial offering little covariate variation
 (one regimen, stage IV only, nonsquamous only, no ECOG), the survival sub-model
 has no basis on which to shift the OS *level* between populations, so it regresses
-every cohort toward `_438`'s marginal OS (~10.5 mo) and under-predicts
+every cohort toward `_438`'s marginal OS (~10 mo) and under-predicts
 longer-lived populations.
 
 Three pieces of evidence support this and, together, rule out the leading
 alternatives:
 
-- **The gap tracks the trial's real OS level, not any covariate we vary.**
-  Spearman ρ(gap, real-OS median) = **+0.80**: the model under-predicts exactly
-  the trials whose true OS sits above `_438`'s (13.4, 11.7, 11.1 mo) and matches
-  the one below it (9.9 mo).
+- **The gap directionally tracks the trial's real OS level.** Spearman ρ(gap,
+  real-OS median) = **+0.40**: the model under-predicts the higher-OS trials (141,
+  108) most. With only four trials this is not statistically resolved (*p* = 0.60)
+  and one high-OS trial (133) is a partial exception, but the gap is present and
+  non-negative in every trial.
 - **The under-prediction is already present internally** — on `_438`'s own
-  held-out set, simulated OS median ~10.8 mo vs ~11.8 mo real (§2). A gap present
+  held-out set, simulated OS median ~9.9 mo vs ~11.8 mo real (§2). A gap present
   within the training trial cannot be a cross-trial transport effect.
-- **108's significance reflects statistical power, not a unique 108 effect.** Its
-  median gap (1.9 mo) is *smaller* than 141's (2.4 mo, not significant); 108
-  reaches significance because of its large n and high event maturity.
+- **108 is the weakest survival transport, not a unique failure.** Its OS is
+  significant in 21% of deployed replicates (majority under the stricter per-draw
+  check) — the higher-OS, high-event-maturity trial in which the systematic
+  under-prediction is most readily detected.
 
 **Post-progression subsequent therapy was tested and ruled out** as the cause.
 Subsequent-therapy rates rise across the externals (25% → 55%), but there is **no
-dose-response** with the OS gap (ρ(gap, therapy rate) = **−0.20**, the wrong
-sign): the largest-gap trial (141) has the *lowest* rate and is `_438`'s own
-regimen, while the highest-rate trial (272) has the *best* OS fit. The apparent
+positive dose-response** with the OS gap (ρ(gap, therapy rate) = **−0.40**, the
+wrong sign): the largest-gap trial (141) has the *lowest* rate and is `_438`'s own
+regimen. The apparent
 within-trial signal — subsequent-therapy patients appearing to live 7–9 months
 longer — is **immortal-time bias**: patients must survive to progression and be
 fit enough to be re-treated, so the untreated arm is enriched for early deaths. A
@@ -285,14 +302,26 @@ study-level effect, to give the survival sub-model a transportable basis (§5).
   tumour-dynamic summaries (e.g. week-8 tumour ratio) as a sensitivity analysis.
 
 A note on strength of evidence: the OS-compression account in §4.2 is
-well-supported by the available data (the ρ = +0.80 level-tracking, the internal
-gap, and the subsequent-therapy exclusion), but establishing it causally requires
-a second lesion-level training trial — which is exactly the first future-work item.
+supported by the available data (the ρ = +0.40 level-tracking, not resolved at four
+trials; the internal gap; and the subsequent-therapy exclusion), but establishing it
+causally requires a second lesion-level training trial — which is exactly the first
+future-work item.
 
 ---
 
 ## Appendix — change log
 
+- **v0.4** — Canonical rebase + robustness. Pinned the deterministic canonical fit
+  (1000/1000/4 NUTS, seed 0; R̂ 1.004, ESS 919; reproduces bit-exactly) after the
+  original run's MCMC settings proved unrecorded; regenerated all baseline artifacts
+  from it. Added `scripts/robustness_analysis.py`: each transport statistic is now a
+  distribution over 1000 posterior-predictive replicates, reported by significance
+  rate under two estimands (deployed = primary, per-draw = sensitivity). Headline
+  refined: under the deployed estimand survival transports for all four external
+  trials (108 OS weakest), BOR fails all; the per-draw sensitivity flags the three
+  higher-OS trials. `scripts/export_submission_figures.py` regenerates Figs 1–5
+  (300 DPI + vector) with distributional annotations; Fig 5 shows the p-value
+  distributions.
 - **v0.3** — Consolidated, paper-ready restructure (Design / Internal / External /
   Limitations / Future Work).
 - **v0.2** — Real Project Data Sphere validation: five-sponsor loaders; revised
