@@ -5,8 +5,8 @@ Discussion, Figures, References). Transport is reported distributionally over 10
 posterior-predictive replicates (deployed estimand primary; Methods 2.6), traced to
 `results/real_data/robustness_summary.json`; the canonical fit and representative
 single-replicate values trace to the regenerated `results/real_data/*_validation.json`.
-The model is fit once, deterministically (1000/1000/4 NUTS, seed 0). Reference
-entries flagged **[VERIFY]** / **[FILL]** require manual confirmation before submission.*
+The model is fit once, deterministically (1000/1000/4 NUTS, seed 0). References have
+been verified against primary sources (except [8], a textbook edition to confirm).*
 
 ---
 
@@ -30,16 +30,20 @@ summarise it by the significance rate (fraction with *p* < 0.05). Internally,
 simulated PFS and OS matched the held-out real curves in the large majority of
 replicates (significant in 3% and 9%; median log-rank *p* = 0.48 and 0.33), and the
 joint model outperformed a resampling baseline on survival-curve calibration.
-Externally, the results split by endpoint. Under the estimand that matches a
-deployed virtual control arm—each synthetic patient an independent posterior
-draw—overall survival transported to all four independent trials (significant in
-0.6–6% of replicates), including a squamous trial the non-squamous-trained model
-had never seen; the one weaker case (trial 108 OS, significant in 21%) was a
-degraded rather than a clean transport. RECIST best-overall-response transported to
-none (significant in 100%). A stricter per-parameter-draw sensitivity analysis
-flagged the three higher-survival trials, reflecting a small but systematic OS
-under-prediction. Both the response non-transport and the OS under-prediction have
-identifiable mechanisms. Response non-transport arises because the model simulates
+Externally, the results split by endpoint, and the survival result depends on a
+modelling choice we make explicit. Under the estimand that matches a deployed virtual
+control arm—each synthetic patient an independent posterior draw—overall survival
+transported to all four independent trials (significant in 0.6–6% of replicates),
+including a squamous trial the non-squamous-trained model had never seen; the one
+weaker case (trial 108 OS, significant in 21%) was a degraded rather than a clean
+transport. This transport is estimand-dependent, however: under a stricter
+per-parameter-draw estimand that preserves parameter uncertainty across the synthetic
+cohort, three of the four survival transports fail (significant in 54–77%), exposing a
+small but systematic OS under-prediction that cohort-level averaging otherwise masks.
+We report both estimands at equal weight and treat the disagreement as itself a
+finding. RECIST best-overall-response transported to none under either estimand
+(significant in 93–100%), a qualitatively different and estimand-robust failure. Both
+the response non-transport and the OS under-prediction have identifiable mechanisms. Response non-transport arises because the model simulates
 target-lesion size only, missing the non-target and new-lesion progression that
 drives much real early progression. The OS under-prediction (0.3–2.3 months, and
 present internally) arises because single-trial training gives the survival
@@ -96,11 +100,12 @@ dynamics and Weibull survival on a single first-line NSCLC control arm—the onl
 one of five public control-arm datasets releasing patient-level longitudinal
 lesion measurements—and evaluated it both on held-out patients from that arm and
 on four independent control arms reporting only aggregate outcomes. The central
-finding is a clean separation by endpoint. Progression-free and overall survival
-transported to independent external trials, including a squamous-histology trial
-the non-squamous-trained model had never seen; RECIST best-overall-response
-classification transported to none. Crucially, neither result is left as an
-unexplained gap. Response non-transport arises because the model simulates
+finding is a separation by endpoint. Progression-free and overall survival
+transported to independent external trials in the deployment-relevant sense—though,
+as we show, this survival transport is estimand-dependent—including a
+squamous-histology trial the non-squamous-trained model had never seen; RECIST
+best-overall-response classification transported to none under any estimand.
+Crucially, neither result is left as an unexplained gap. Response non-transport arises because the model simulates
 target-lesion tumour size alone and cannot generate the non-target and new-lesion
 progression that defines much of real early RECIST progression; the survival
 under-prediction arises because a single training trial gives the survival
@@ -291,9 +296,9 @@ response and survival only). We then asked two questions in sequence: whether th
 model's simulated patients reproduce real patients held out from that same trial
 (internal validation, §3.1), and whether—without ever seeing their patients—the
 model reproduces the aggregate outcomes of four independent control arms (external
-validation, §3.2). The results separate cleanly by endpoint: survival transports,
-RECIST response does not, and each outcome has a distinct, identifiable cause
-(§3.3, §3.4).
+validation, §3.2). The results separate by endpoint: survival transports in the
+deployment-relevant sense (though estimand-dependently), RECIST response does not,
+and each outcome has a distinct, identifiable cause (§3.3, §3.4).
 
 ### 3.1 Internal validation on held-out patients
 
@@ -346,43 +351,74 @@ real outcomes. Because these trials report only aggregates, the comparison is
 distributional—χ² for best-overall-response (BOR) and log-rank for PFS/OS—where a
 large *p*-value indicates that simulated and real are not detectably different.
 
-The results separated by endpoint (Table 2). **Under the deployed estimand, overall
-survival transported to all four external trials.** The significance rate—the
-fraction of 1000 replicates rejecting agreement, against a ~5% null expectation—was
-0.6–6% for trials 141, 272, and 133, and 21% for trial 108, the single degraded
-case. PFS transported wherever derivable (significant in 1–4%; not derivable for
-trial 133, whose export contains no progression dates). Transport held even where the
-training arm's composition should have made it hardest: trial 272 enrolled
-exclusively squamous patients on a different regimen (gemcitabine–cisplatin), yet its
-simulated OS was significant in under 2% of replicates (Fig. 2). **RECIST
-best-overall-response, by contrast, transported for no trial** (significant in 100%;
-Fig. 3). A stricter per-parameter-draw sensitivity analysis (Methods 2.6) sharpened
-the survival picture: internal validation and trial 141 stayed largely
-non-significant, but the three higher-survival trials (272, 133, 108) became
-significant in the majority of replicates (54–77%), reflecting the small systematic
-OS under-prediction dissected in §3.4. The following two sections dissect the two
-mechanisms—response non-transport (§3.3) and OS under-prediction (§3.4)—each with an
-identifiable cause rather than an unexplained gap.
+The results separated by endpoint, but the survival result depends on a modelling
+choice that we make explicit rather than fix silently. A virtual control arm can be
+evaluated under two estimands that answer different questions. The **deployed
+estimand** draws each synthetic patient's parameters independently from the
+posterior—mirroring how a virtual control arm is actually used, where one generates a
+population of independent synthetic patients—so the cohort-level curve averages over
+parameter uncertainty and is comparatively smooth. The **per-draw estimand** fixes a
+single posterior parameter vector for the whole synthetic cohort, preserving parameter
+uncertainty as curve-to-curve variation and thereby applying a stricter test of
+whether the model has *calibrated* the survival distribution rather than merely centred
+on it. Neither is uniquely correct; they measure deployment-realistic behaviour and
+uncertainty-preserving calibration respectively. We report both at equal weight
+(Table 2) and designate deployed as primary on the grounds that it matches the
+intended use, while flagging throughout that the survival conclusion is
+estimand-dependent.
 
-**Table 2.** External transport under the deployed estimand (1000 posterior-predictive
-replicates). Each cell gives the significance rate (% of replicates with *p* < 0.05;
-"n.s." = not significant, "sig" = significant) and the median *p* with its 5–95%
-interval. A low significance rate on survival indicates transport; a high rate on BOR
-indicates non-transport.
+**Under the deployed estimand, overall survival transported to all four external
+trials.** The significance rate—the fraction of 1000 replicates rejecting agreement,
+against a ~5% null expectation—was 0.6–6% for trials 141, 272, and 133, and 21% for
+trial 108, the single degraded case. PFS transported wherever derivable (significant in
+1–4%; not derivable for trial 133, whose export contains no progression dates).
+Transport held even where the training arm's composition should have made it hardest:
+trial 272 enrolled exclusively squamous patients on a different regimen
+(gemcitabine–cisplatin), yet its simulated OS was significant in under 2% of deployed
+replicates (Fig. 2).
 
-| trial | *n* | regimen / line / histology | BOR (χ²) | PFS (log-rank) | OS (log-rank) |
-|-------|-----|----------------------------|----------|----------------|---------------|
-| 141 | 467 | Pac+Carbo+Bev / 1L / non-sq | 100% sig · med *p* 7×10⁻⁶ | 99% n.s. · med *p* 0.61 (0.12–0.95) | 94% n.s. · med *p* 0.40 (0.05–0.93) |
-| 272 | 549 | Gem+Cis / 1L / squamous | 100% sig · med *p* 7×10⁻⁷ | 97% n.s. · med *p* 0.52 (0.08–0.94) | 99% n.s. · med *p* 0.60 (0.12–0.97) |
-| 133 | 455 | Placebo+Docetaxel / 2L | 100% sig · med *p* 2×10⁻⁵⁶ | n/a (not derivable) | 99% n.s. · med *p* 0.62 (0.16–0.97) |
-| 108 | 532 | Pac+Carbo / 1L / mixed | 100% sig · med *p* 3×10⁻¹⁰ | 96% n.s. · med *p* 0.41 (0.06–0.93) | 79% n.s. · med *p* 0.16 (0.01–0.79) |
+**Under the stricter per-draw estimand, this survival picture partly dissolves.**
+Internal validation and trial 141 remained largely non-significant (internal OS 11%,
+trial 141 OS 37%), but the three higher-survival trials became distinguishable in the
+majority of replicates: trial 272 OS significant in 73%, trial 133 OS in 77%, and trial
+108 OS in 54% (Table 2). The two estimands thus reach *opposite* verdicts for three of
+the four trials—transport under deployed, non-transport under per-draw—and the gap
+between them is not noise but the signature of the systematic OS under-prediction
+dissected in §3.4: averaging over parameter uncertainty (deployed) masks a shortfall
+that preserving it (per-draw) exposes. **RECIST best-overall-response, by contrast,
+transported for no trial under either estimand** (significant in 93–100%; Fig. 3), a
+qualitatively different and estimand-robust failure. The following two sections dissect
+the two mechanisms—response non-transport (§3.3) and OS under-prediction (§3.4)—each
+with an identifiable cause rather than an unexplained gap.
 
-*Representative replicate (canonical n_draws = 400), *p* and real / simulated medians
-(months): 141 — BOR 1.5×10⁻⁵, PFS 0.31 (5.6/5.1), OS 0.13 (13.4/11.1); 272 — BOR
-4.1×10⁻⁵, PFS 0.63 (5.5/4.8), OS 0.82 (9.9/9.1); 133 — BOR 4.0×10⁻⁵⁹, OS 0.62
-(11.7/11.3); 108 — BOR 7.3×10⁻¹³, PFS 0.55 (5.3/4.8), OS 0.09 (11.1/9.5). Per-draw
-(sensitivity) significance rates for survival: 141 PFS/OS 29%/37%; 272 75%/73%; 133
-OS 77%; 108 PFS/OS 54%/54%.*
+**Table 2.** External transport under both estimands (1000 posterior-predictive
+replicates each). Each cell gives the significance rate (% of replicates with *p* <
+0.05) under the deployed estimand (primary; each synthetic patient an independent
+posterior draw) and the per-draw estimand (sensitivity; one posterior parameter vector
+per cohort). A low significance rate indicates transport. For survival, the two
+estimands agree for trial 141 and disagree for trials 272, 133, and 108; for BOR they
+agree (non-transport) throughout.
+
+| trial | *n* | regimen / line / histology | endpoint | deployed (primary) | per-draw (sensitivity) |
+|-------|-----|----------------------------|----------|--------------------|------------------------|
+| 141 | 467 | Pac+Carbo+Bev / 1L / non-sq | OS | 6% sig | 37% sig |
+| | | | PFS | 1% sig | 29% sig |
+| | | | BOR | 100% sig | 97% sig |
+| 272 | 549 | Gem+Cis / 1L / squamous | OS | 1% sig | 73% sig |
+| | | | PFS | 3% sig | 75% sig |
+| | | | BOR | 100% sig | 93% sig |
+| 133 | 455 | Placebo+Docetaxel / 2L | OS | 1% sig | 77% sig |
+| | | | PFS | n/a (not derivable) | n/a (not derivable) |
+| | | | BOR | 100% sig | 100% sig |
+| 108 | 532 | Pac+Carbo / 1L / mixed | OS | 21% sig | 54% sig |
+| | | | PFS | 4% sig | 54% sig |
+| | | | BOR | 100% sig | 100% sig |
+
+*Deployed-estimand median *p* with 5–95% interval (survival): 141 OS 0.40 (0.05–0.93),
+PFS 0.61 (0.12–0.95); 272 OS 0.60 (0.12–0.97), PFS 0.52 (0.08–0.94); 133 OS 0.62
+(0.16–0.97); 108 OS 0.16 (0.01–0.79), PFS 0.41 (0.06–0.93). Representative canonical
+replicate (single fit, seed 0), real / simulated medians (months): 141 OS 13.4/11.1,
+272 OS 9.9/9.1, 133 OS 11.7/11.3, 108 OS 11.1/9.5.*
 
 ### 3.3 Response non-transport reflects target-lesion-only simulation
 
@@ -457,12 +493,36 @@ failure.
 
 ## 4. Discussion
 
-This validation produced a clean split by endpoint—survival transported to
-independent external control arms, RECIST response did not—and, more importantly,
-attached an identified mechanism to each result. The two failures are distinct in
-cause and imply distinct, non-interchangeable remedies. Collapsing them into a
-generic "more data would help" would obscure the substantive point, so we keep them
-separate throughout.
+This validation produced a split by endpoint—survival transported to independent
+external control arms in the deployment-relevant sense, RECIST response did not—and,
+more importantly, attached an identified mechanism to each result. The two failures are
+distinct in cause and imply distinct, non-interchangeable remedies. Collapsing them
+into a generic "more data would help" would obscure the substantive point, so we keep
+them separate throughout.
+
+**Which estimand is primary, and what that choice costs.** Our survival-transport
+headline rests on the deployed estimand, and the justification is genuinely a use-case
+one: a virtual control arm is operationalised by generating a population of synthetic
+patients, each an independent draw, and then comparing that population to a real arm.
+The deployed estimand simulates exactly this, so its significance rates describe the
+behaviour a trialist would actually encounter. We therefore consider it the right
+primary lens for a paper about virtual control arms *as deployed*. But this choice is
+not free, and we take care not to let it flatter the result. Because each synthetic
+patient carries an independent parameter draw, the cohort-level survival curve
+marginalises over the model's parameter uncertainty; a model that is systematically
+biased but wide can appear well-calibrated at the cohort level precisely because
+averaging washes the bias out. The per-draw estimand, by holding parameters fixed
+across the cohort, refuses that averaging and is the more searching test of
+calibration—and under it, three of our four survival transports fail. The honest
+reading is not that survival "transports" full stop, but that it transports *in the
+averaged, deployment-relevant sense while a systematic OS under-prediction (§3.4)
+remains detectable once parameter uncertainty is preserved*. We regard reporting both,
+and naming the disagreement, as more informative than adjudicating a single winner: a
+reader designing an actual virtual control arm cares about the deployed behaviour,
+whereas a reader assessing whether the model has truly learned the survival
+distribution should weight the per-draw result. The estimand dependence is thus itself
+a finding—one that a single reported p-value, under either estimand, would have
+concealed.
 
 **The OS-compression fix: covariate support, not data volume.** The overall-survival
 under-prediction of §3.4 is a covariate-support problem. With a single training arm
@@ -655,41 +715,48 @@ is named as a future direction and is not used here.
 
 ## References
 
-*Citation keys are provisional. Entries flagged **[VERIFY]** should be confirmed
-against the primary source (authors, venue, year, pagination) before submission;
-those flagged **[FILL]** need the specific reference identified and supplied.*
+*All references have been verified against primary sources except [8], a standard
+textbook (confirm the edition consulted).*
 
 1. Eisenhauer EA, Therasse P, Bogaerts J, et al. New response evaluation criteria in
    solid tumours: revised RECIST guideline (version 1.1). *Eur J Cancer.*
-   2009;45(2):228–247. **[VERIFY pagination]**
-2. Unlearn.AI prognostic "digital twin" / prognostic covariate adjustment
-   methodology — identify the specific published reference (e.g. Fisher CK, Smith AM,
-   Walsh JR. Machine learning for comprehensive forecasting of Alzheimer's disease
-   progression. *Sci Rep.* 2019;9:13622; or the PROCOVA prognostic-score adjustment
-   paper). **[VERIFY — select the citation that best matches the control-arm/digital-twin work being positioned against; confirm authors, venue, year]**
-3. Certara model-based simulation / model-based meta-analysis methodology for
-   virtual or external control applications. **[FILL — identify the specific peer-reviewed Certara publication or qualified methodology to cite]**
+   2009;45(2):228–247. doi:10.1016/j.ejca.2008.10.026.
+2. Schuler A, Walsh D, Hall D, Walsh J, Fisher C, for the Critical Path for
+   Alzheimer's Disease, the Alzheimer's Disease Neuroimaging Initiative, and the
+   Alzheimer's Disease Cooperative Study. Increasing the efficiency of randomized
+   trial estimates via linear adjustment for a prognostic score. *Int J Biostat.*
+   2022;18(2):329–356. doi:10.1515/ijb-2021-0072. *(Founding PROCOVA
+   prognostic-covariate-adjustment paper underlying Unlearn.AI's digital-twin
+   methodology; authors Unlearn.AI-affiliated at publication.)*
+3. Khachatryan A, Read SH, Madison T. External control arms for rare diseases:
+   building a body of supporting evidence. *J Pharmacokinet Pharmacodyn.*
+   2023;50:501–506. doi:10.1007/s10928-023-09858-8. *(Certara-authored case study on
+   model-based meta-analysis for synthetic/external control arms.)*
 4. Thorlund K, Dron L, Park JJH, Mills EJ. Synthetic and external controls in
    clinical trials — a primer for researchers. *Clin Epidemiol.* 2020;12:457–467.
-   **[VERIFY]**
-5. Green AK, Reeder-Hayes KE, Corty RW, et al. The Project Data Sphere initiative:
-   accelerating cancer research by sharing data. *Oncologist.* 2015;20(5):464–e20.
-   **[VERIFY authors and pagination]**
+   doi:10.2147/CLEP.S242097.
+5. Green AK, Reeder-Hayes KE, Corty RW, Basch E, Milowsky MI, Dusetzina SB, Bennett
+   AV, Wood WA. The Project Data Sphere initiative: accelerating cancer research by
+   sharing data. *Oncologist.* 2015;20(5):464–e20. doi:10.1634/theoncologist.2014-0431.
 6. Stein WD, Gulley JL, Schlom J, et al. Tumor regression and growth rates determined
    in five intramural NCI prostate cancer trials: the growth rate constant as an
    indicator of therapeutic efficacy. *Clin Cancer Res.* 2011;17(4):907–917.
-   **[VERIFY — confirm this is the intended Stein bi-exponential TGI reference]**
+   doi:10.1158/1078-0432.CCR-10-1762.
 7. Claret L, Girard P, Hoff PM, et al. Model-based prediction of phase III overall
    survival in colorectal cancer on the basis of phase II tumor dynamics. *J Clin
-   Oncol.* 2009;27(25):4103–4108. **[VERIFY]**
+   Oncol.* 2009;27(25):4103–4108. doi:10.1200/JCO.2008.21.0807.
 8. Collett D. *Modelling Survival Data in Medical Research.* 3rd ed. Boca Raton:
-   Chapman & Hall/CRC; 2015. **[VERIFY edition/year]**
+   Chapman & Hall/CRC; 2015. *(Confirm edition consulted.)*
 9. Mantel N. Evaluation of survival data and two new rank order statistics arising in
-   its consideration. *Cancer Chemother Rep.* 1966;50(3):163–170. **[VERIFY]**
+   its consideration. *Cancer Chemother Rep.* 1966;50(3):163–170.
 10. Graf E, Schmoor C, Sauerbrei W, Schumacher M. Assessment and comparison of
     prognostic classification schemes for survival data. *Stat Med.*
-    1999;18(17–18):2529–2545. **[VERIFY]**
+    1999;18(17–18):2529–2545.
+    doi:10.1002/(SICI)1097-0258(19990915/30)18:17/18<2529::AID-SIM274>3.0.CO;2-5.
 11. Gneiting T, Raftery AE. Strictly proper scoring rules, prediction, and
-    estimation. *J Am Stat Assoc.* 2007;102(477):359–378. **[VERIFY]**
+    estimation. *J Am Stat Assoc.* 2007;102(477):359–378.
+    doi:10.1198/016214506000001437.
 12. Surveillance, Epidemiology, and End Results (SEER) Program, National Cancer
-    Institute, DCCPS. SEER research data. https://seer.cancer.gov. **[VERIFY citation format for the specific SEER release, if used]**
+    Institute, DCCPS. SEER Research Data. Available at: https://seer.cancer.gov.
+    *(Cited as a future-work reference; SEER data were not used in the present
+    analysis.)*
