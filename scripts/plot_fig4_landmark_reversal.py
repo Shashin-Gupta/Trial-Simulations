@@ -46,15 +46,19 @@ landmark_therapy = 12.3
 landmark_none = 17.7
 
 
-def main() -> None:
+def draw(ax, *, label_fontsize: int = 10) -> None:
+    """Draw the trial-108 naive-vs-landmark grouped bars onto ``ax``.
+
+    Colour follows the category (not the group) so the reversal reads as
+    blue tall -> blue short. Caller sets the title. Reused by the submission
+    export (scripts/export_submission_figures.py) so Fig. 4 has one source.
+    """
     groups = ["Naive split\n(ever vs never)", "180-day landmark\n(alive at 180 d)"]
     therapy_vals = [naive_therapy, landmark_therapy]
     none_vals = [naive_none, landmark_none]
 
     x = range(len(groups))
     w = 0.36
-    fig, ax = plt.subplots(figsize=(6.6, 4.2))
-
     bars_t = ax.bar([i - w / 2 for i in x], therapy_vals, w,
                     label="Subsequent therapy", color=C_THERAPY,
                     edgecolor="white", linewidth=1.2)
@@ -69,21 +73,25 @@ def main() -> None:
             ax.annotate(f"{b.get_height():.1f}",
                         (b.get_x() + b.get_width() / 2, b.get_height()),
                         xytext=(0, 3), textcoords="offset points",
-                        ha="center", va="bottom", fontsize=10, color=INK)
+                        ha="center", va="bottom", fontsize=label_fontsize, color=INK)
 
-    ax.set_ylabel("Median overall survival (months)", fontsize=11, color=INK)
-    ax.set_title("Trial 108: subsequent therapy vs OS — naive split reverses "
-                 "under a landmark", fontsize=11, color=INK)
+    ax.set_ylabel("Median overall survival (months)", fontsize=label_fontsize + 1, color=INK)
     ax.set_xticks(list(x))
-    ax.set_xticklabels(groups, fontsize=10, color=INK)
+    ax.set_xticklabels(groups, fontsize=label_fontsize, color=INK)
     ax.set_ylim(0, 20)
-    ax.legend(frameon=False, fontsize=10, loc="upper left")
+    ax.legend(frameon=False, fontsize=label_fontsize, loc="upper left")
 
     ax.spines[["top", "right"]].set_visible(False)
     ax.yaxis.grid(True, color="#dddddd", linewidth=0.8)
     ax.set_axisbelow(True)
     ax.tick_params(colors=INK)
 
+
+def main() -> None:
+    fig, ax = plt.subplots(figsize=(6.6, 4.2))
+    draw(ax)
+    ax.set_title("Trial 108: subsequent therapy vs OS — naive split reverses "
+                 "under a landmark", fontsize=11, color=INK)
     fig.tight_layout()
     OUT.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUT, dpi=150, bbox_inches="tight")
