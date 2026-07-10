@@ -38,6 +38,21 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "real_data"
 
 
+def _print_convergence(model) -> None:
+    """Concise NUTS convergence check: worst R-hat and smallest ESS across params."""
+    import numpyro.diagnostics as diag
+
+    samples = model._mcmc.get_samples(group_by_chain=True)
+    summ = diag.summary(samples, prob=0.9, group_by_chain=True)
+    worst_rhat, min_ess = 1.0, float("inf")
+    for stats in summ.values():
+        worst_rhat = max(worst_rhat, float(np.nanmax(stats["r_hat"])))
+        min_ess = min(min_ess, float(np.nanmin(stats["n_eff"])))
+    ok = worst_rhat < 1.01 and min_ess >= 400
+    print(f"[converge] worst R-hat={worst_rhat:.3f}  min ESS={min_ess:.0f}  "
+          f"[{'OK' if ok else 'WEAK — consider bumping num_warmup/num_samples'}]")
+
+
 def measurable_cohort(td: TrialData) -> TrialData:
     """Restrict _438 to patients with a baseline target-lesion SLD (TGI-modelable)."""
     ok = pd.to_numeric(td.baseline["baseline_sld_mm"], errors="coerce").notna()
@@ -85,6 +100,7 @@ def run_internal(args) -> dict:
                              num_chains=args.num_chains, seed=args.seed)
     print("[Step 2] fitting Bayesian TGI+survival model on real _438 train split...")
     bayes.fit(train)
+    _print_convergence(bayes)
 
     internal_dir = OUT
     internal_dir.mkdir(parents=True, exist_ok=True)
@@ -232,10 +248,10 @@ def _plot_external(tid, real, res, surv_cmps, fig_dir) -> None:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--test-fraction", type=float, default=0.2)
-    p.add_argument("--n-draws", type=int, default=300)
-    p.add_argument("--num-warmup", type=int, default=500)
-    p.add_argument("--num-samples", type=int, default=500)
-    p.add_argument("--num-chains", type=int, default=2)
+    p.add_argument("--n-draws", type=int, default=400)  # canonical, pinned baseline
+    p.add_argument("--num-warmup", type=int, default=1000)
+    p.add_argument("--num-samples", type=int, default=1000)
+    p.add_argument("--num-chains", type=int, default=4)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--quick", action="store_true", help="tiny MCMC for a smoke run")
     args = p.parse_args(argv)

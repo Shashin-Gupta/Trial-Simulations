@@ -12,6 +12,7 @@ level. Writes results/real_data/subsequent_therapy_diagnostic.csv.
 
 from __future__ import annotations
 
+import json
 import warnings
 from pathlib import Path
 
@@ -29,11 +30,13 @@ ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "data" / "raw"
 MO = 30.4375
 
-# sim-vs-real OS medians from the external validation (results/real_data/external)
-OS_GAP = {  # trial: (real_os_mo, sim_os_mo, logrank_p)
-    "141": (13.40, 10.96, 0.180), "272": (9.86, 8.73, 0.990),
-    "133": (11.66, 10.23, 0.874), "108": (11.14, 9.27, 0.018),
-}
+
+def _os_gap(tid: str) -> tuple[float, float, float]:
+    """Canonical (real_os_mo, sim_os_mo, representative logrank_p) from the
+    regenerated external validation JSON — not hardcoded, so it tracks the fit."""
+    ej = json.loads((ROOT / "results" / "real_data" / "external" / f"{tid}_external.json").read_text())
+    o = ej["os"]
+    return o["real_median_months"], o["sim_median_months"], o["logrank_p"]
 
 
 def _med(t, e):
@@ -108,7 +111,7 @@ def main():
     rows = []
     for tid, ids in rates.items():
         rate, med_y, med_n, p = _split(tid, ids)
-        real, sim, lp = OS_GAP[tid]
+        real, sim, lp = _os_gap(tid)
         rows.append({"trial": tid, "subseq_rate": round(rate, 3),
                      "os_med_subseq_mo": round(med_y, 1), "os_med_none_mo": round(med_n, 1),
                      "split_logrank_p": p, "real_os_mo": real, "sim_os_mo": sim,
