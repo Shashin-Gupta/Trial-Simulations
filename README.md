@@ -5,16 +5,19 @@ trajectories — tumour size over time, progression, and survival — for a sing
 well-characterised indication (advanced NSCLC), validated against real historical
 comparator-arm data.**
 
-> Status: **research — validated on real Project Data Sphere data.** Phases 0–2
-> are built; the model is now trained and internally validated on a real NSCLC
+> Status: **research — validated on real Project Data Sphere data; full paper draft
+> complete.** The model is trained and internally validated on a real NSCLC
 > comparator arm (`_438`) and externally validated against four independent real
-> trials at the aggregate level (`docs/methodology.md` §6–7). ClinicalTrials.gov
-> is integrated as a benchmark sanity check; SEER-based real-world calibration is
-> planned future work, **not** yet incorporated (so this is a *trial-data*
-> validation, not population-level calibration). The end goals are (1) a
-> bioRxiv-publishable validation paper for one indication/endpoint, and (2) a
-> lightweight tool that turns a proposed trial design into a simulated
-> power/feasibility analysis. See the [roadmap](#roadmap).
+> trials. Transport is characterised **distributionally** over posterior-predictive
+> replicates (a single replicate is Monte-Carlo noisy): under the deployed
+> virtual-control-arm estimand, survival transports to all four trials and RECIST
+> best-overall-response transports to none — each with an identified mechanism.
+> ClinicalTrials.gov is a benchmark sanity check; SEER-based real-world calibration
+> is planned future work (so this is a *trial-data* validation, not population-level
+> calibration). Full write-up in [`docs/paper.md`](docs/paper.md); modelling choices
+> and limitations in [`docs/methodology.md`](docs/methodology.md). The end goals are
+> (1) a bioRxiv validation paper, and (2) a lightweight tool that turns a proposed
+> trial design into a simulated power/feasibility analysis. See the [roadmap](#roadmap).
 
 ---
 
@@ -51,8 +54,11 @@ match held-out real patients on:
 
 - **survival curves** (Kaplan–Meier overlay + log-rank),
 - **calibration** (do predicted event probabilities match observed frequencies?),
-- **prediction-interval coverage**, and
-- **proper scoring rules** (IPCW Brier score, CRPS).
+- **prediction-interval coverage**,
+- **proper scoring rules** (IPCW Brier score, CRPS), and
+- **transport** to independent external trials the model never saw — reported as a
+  *distribution* of the transport statistic over 1000 posterior-predictive
+  replicates (a significance rate), not a single Monte-Carlo-noisy p-value.
 
 ### Indication and endpoint (confirmed)
 
@@ -111,14 +117,21 @@ five NSCLC comparator-arm datasets are placed under `data/raw/<trial_id>/`
 
 ```bash
 pip install -e ".[bayes,sas]"                 # NumPyro/JAX + pyreadstat
-python scripts/profile_trials.py              # Step 1: per-trial data profiles
-python scripts/run_real_data_validation.py    # Steps 2–3: internal + external validation
+python scripts/profile_trials.py              # per-trial data profiles
+python scripts/run_real_data_validation.py    # canonical fit → internal + external JSONs
+python scripts/verify_baseline.py             # confirm the fit reproduces bit-exactly
+python scripts/robustness_analysis.py         # 1000-replicate transport distributions
+python scripts/export_submission_figures.py   # Figs 1–5 (300 DPI PNG + vector PDF)
 ```
 
-This trains the Bayesian model on `_438`, scores it on the held-out 20%, then
-runs the external aggregate validation (matched synthetic population → simulated
-BOR + PFS/OS vs each real trial), and finally checks all simulated medians
-against the ClinicalTrials.gov benchmark. Outputs land in `results/real_data/`
+The pipeline trains the Bayesian model on `_438` (a **deterministic, pinned
+canonical fit**: 1000/1000/4 NUTS, seed 0 — reproduces bit-exactly), scores it on
+the held-out 20%, runs the external aggregate validation (matched synthetic
+population → simulated BOR + PFS/OS vs each real trial), and checks all simulated
+medians against the ClinicalTrials.gov benchmark. `robustness_analysis.py` then
+replaces each single, Monte-Carlo-noisy transport statistic with a distribution
+over 1000 posterior-predictive replicates (deployed + per-draw estimands), writing
+`results/real_data/robustness_summary.json`. Outputs land in `results/`
 (git-ignored). Each trial is loaded via `vca.data_processing.pds_trials`:
 
 ```python
@@ -151,11 +164,13 @@ rt.data.validate(strict=False)
 │   │                     #   pipeline, external (aggregate validation), profiling
 │   ├── viz/              # plots
 │   └── product/          # Phase 3 wrapper (STUBBED)
-├── notebooks/         # 00_data_profiling, 01_validation_report (jupytext .py)
-├── scripts/           # run_demo.py (synthetic), profile_trials.py,
-│                      #   run_real_data_validation.py (real PDS Steps 2–3)
+├── notebooks/         # 00_data_profiling, 01_validation_report, 02_real_data_profiling
+├── scripts/           # run_demo (synthetic); profile_trials; run_real_data_validation
+│                      #   (canonical fit); verify_baseline; robustness_analysis;
+│                      #   export_submission_figures; diagnose_os_subsequent_therapy;
+│                      #   plot_fig4_landmark_reversal
 ├── tests/             # pytest
-└── docs/methodology.md# modelling choices + flagged validity concerns (Methods draft)
+└── docs/              # paper.md (manuscript) + methodology.md (factual source of truth)
 ```
 
 **Note on layout.** The package is a proper `src/`-layout package named `vca`
@@ -189,7 +204,10 @@ over trajectories can drop in behind the same interface:
 with calibration, PI coverage, IPCW Brier, CRPS, and KM/log-rank results, written
 as both a machine-readable table (`results/*.json` / `.csv`) and figures — ready
 to cite in a paper draft. Metrics are always reported for the Bayesian model
-*and* the baseline.
+*and* the baseline. The external transport distributions are written to
+`results/real_data/robustness_summary.json` (with per-replicate p-values in
+`robustness_pvalues.npz`), and the paper's Figures 1–5 are regenerated at 300 DPI +
+vector PDF into `results/submission_figures/`.
 
 ---
 
@@ -202,9 +220,12 @@ to cite in a paper draft. Metrics are always reported for the Bayesian model
 - [x] **Phase 2** — held-out validation suite (calibration, coverage, Brier,
   CRPS, KM/log-rank); validated on synthetic data.
 - [x] **Phase 2 on real data** — Project Data Sphere NSCLC: trained + internally
-  validated on `_438`; externally validated aggregates against four independent
-  trials; ClinicalTrials.gov benchmark sanity check passed. Results and honest
-  limitations in `docs/methodology.md` §6–9. *Paper write-up in progress.*
+  validated on `_438`; externally validated against four independent trials;
+  ClinicalTrials.gov benchmark sanity check passed.
+- [x] **Robustness + paper** — pinned deterministic canonical fit; transport
+  reported distributionally over 1000 posterior-predictive replicates (deployed +
+  per-draw estimands); full manuscript in `docs/paper.md` with submission-quality
+  figures. Results and honest limitations in `docs/methodology.md`.
 - [ ] **Future: SEER real-world calibration** — fold population-level SEER
   survival in as an external calibration layer (the loader exists but is
   dormant); trial populations are healthier/more selected than the general
@@ -236,6 +257,6 @@ flagged **⚠ VALIDITY** in `docs/methodology.md` rather than glossed over.
   title   = {Virtual Control Arms: Generative Patient-Level Simulation for
              Oncology Trials (NSCLC)},
   year    = {2026},
-  url     = {https://github.com/<your-org>/virtual-control-arms}
+  url     = {https://github.com/Shashin-Gupta/Trial-Simulations}
 }
 ```

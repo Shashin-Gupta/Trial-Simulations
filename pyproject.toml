@@ -10,6 +10,7 @@ readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Shashin Gupta" }]
 requires-python = ">=3.10"
+urls = { Repository = "https://github.com/Shashin-Gupta/Trial-Simulations" }
 
 # Core runtime dependencies. These are enough to run the data layer, the
 # dependency-light baseline model, and the entire validation pipeline on
