@@ -1,12 +1,11 @@
 # Transportable survival, non-transportable response: a mechanistic validation of a generative virtual control arm for advanced NSCLC
 
-*Working manuscript draft — full draft (Abstract, Introduction, Methods, Results,
-Discussion, Figures, References). Transport is reported distributionally over 1000
-posterior-predictive replicates (deployed estimand primary; Methods 2.6), traced to
-`results/real_data/robustness_summary.json`; the canonical fit and representative
-single-replicate values trace to the regenerated `results/real_data/*_validation.json`.
-The model is fit once, deterministically (1000/1000/4 NUTS, seed 0). References have
-been verified against primary sources (except [8], a textbook edition to confirm).*
+**Shashin Kumar Gupta**^\*^
+
+*Department of Statistics and Applied Probability, University of California, Santa
+Barbara, Santa Barbara, CA 93106, USA*
+
+^\*^Correspondence: shashingupta@gmail.com
 
 ---
 
@@ -710,6 +709,26 @@ repository's `.gitignore` defensively excludes all patient-derived files (the ra
 data under `data/raw/` and the rendered figures under `results/`). ClinicalTrials.gov
 arm-level historical medians, used only as a plausibility backstop, are public. SEER
 is named as a future direction and is not used here.
+
+## Author contributions
+
+S.K.G. conceived the study, developed the methodology and software, performed the
+analysis, and wrote the manuscript.
+
+## Competing interests
+
+The author declares no competing interests.
+
+## Funding
+
+This work received no external funding.
+
+## Ethics
+
+This study is a secondary analysis of de-identified, publicly accessible clinical
+trial data obtained from Project Data Sphere under its data-use agreement. No new
+human-subjects data were collected, and no attempt was made to re-identify any
+individual.
 
 ---
 
